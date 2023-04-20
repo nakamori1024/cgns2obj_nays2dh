@@ -22,6 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+# v2.0.0
 import os
 import shutil
 import tkinter as tk
@@ -158,12 +159,14 @@ def get_vt(x_coords, y_coords):
 
     return vt_text
 
-def get_f(ni, nj, reverse):
+def get_f(ni, nj, grid_num, step, reverse):
     """
     格子形状からobjのメッシュ情報を取得する。\n
     Args:
         ni : 縦断方向の分割数
         nj : 横断方向の分割数
+        grid_num : 計算格子の格子点の数
+        step : 出力結果のステップ数（出力開始時をstep1とし、出力間隔毎に1ずつ増える）
         reverse : Y軸の反転有無（True:反転する、False:反転しない）
     Returns:
         f_text : obj形式のメッシュ情報
@@ -174,10 +177,10 @@ def get_f(ni, nj, reverse):
     for j in range(nj + 1):
         for i in range(ni):
             # 格子点番号
-            n1  = (ni + 1) * j + i + 1
-            n2  = (ni + 1) * j + i + 2
-            n3b = (ni + 1) * (j - 1) + i + 2
-            n3a = (ni + 1) * (j + 1) + i + 1
+            n1  = (ni + 1) * j + i + 1 + grid_num * (step - 1)
+            n2  = (ni + 1) * j + i + 2 + grid_num * (step - 1)
+            n3b = (ni + 1) * (j - 1) + i + 2 + grid_num * (step - 1)
+            n3a = (ni + 1) * (j + 1) + i + 1 + grid_num * (step - 1)
 
             # 垂直方向情報
             h = 1
@@ -233,6 +236,9 @@ def wsurf_obj(cgns_land, cgns_depth, reverse=False):
     ni = gridsize[0] # 縦断方向
     nj = gridsize[1] # 横断方向
 
+    # 格子点の数
+    grid_num = (ni + 1) * (nj + 1)
+
     # 計算格子の座標値
     x_coords = iRland.CoordX()
     y_coords = iRland.CoordY()
@@ -242,6 +248,17 @@ def wsurf_obj(cgns_land, cgns_depth, reverse=False):
 
     # 最小水深+1mm
     min_depth = iRdepth.MinDepth() + 0.001
+
+    # objファイルの名前
+    obj_file = "./output/wsurf.obj"
+
+    with open(obj_file, "w") as f:
+        # マテリアル定義ファイル
+        obj_text = "# mtl file" + "\n"
+        obj_text += "mtllib water.mtl" + "\n" + "\n"
+
+        # 書き込み
+        f.write(obj_text)
 
     for step in range(nstep):
         # 地形（標高）
@@ -263,17 +280,10 @@ def wsurf_obj(cgns_land, cgns_depth, reverse=False):
         vt_text = get_vt(x_coords, y_coords)
 
         # メッシュ情報
-        f_text = get_f(ni, nj, reverse)
-
-        # objファイルの名前
-        obj_file = "./output/wsurf_step=" + str(step + 1) + ".obj"
+        f_text = get_f(ni, nj, grid_num, step + 1, reverse)
 
         # objファイル
         with open(obj_file, "w") as f:
-            # マテリアル定義ファイル
-            obj_text = "# mtl file" + "\n"
-            obj_text += "mtllib water.mtl" + "\n" + "\n"
-
             # グループ名
             obj_text += "# Group Name" + "\n"
             obj_text += "g step" + str(step + 1) + "\n" + "\n"
@@ -296,7 +306,7 @@ def wsurf_obj(cgns_land, cgns_depth, reverse=False):
 
             # メッシュ情報
             obj_text += "# Mesh Infomaition" + "\n"
-            obj_text += f_text
+            obj_text += f_text + "\n"
 
             # 書き込み
             f.write(obj_text)
@@ -322,6 +332,9 @@ def land_obj(cgns_land, reverse=False):
     gridsize = iRland.GridSize()
     ni = gridsize[0] # 縦断方向
     nj = gridsize[1] # 横断方向
+    
+    # 格子点の数
+    grid_num = (ni + 1) * (nj + 1)
 
     # 計算格子の座標値
     x_coords = iRland.CoordX()
@@ -337,7 +350,7 @@ def land_obj(cgns_land, reverse=False):
     vt_text = get_vt(x_coords, y_coords)
 
     # メッシュ情報
-    f_text = get_f(ni, nj, reverse)
+    f_text = get_f(ni, nj, grid_num, 1, reverse)
 
     # objファイルの名前
     obj_file = "./output/land_step=" + str(1) + ".obj"
